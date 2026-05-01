@@ -1,131 +1,58 @@
 import { useParams, Link } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { Instagram, Linkedin, CalendarCheck, Camera, Facebook } from "lucide-react";
+import { Instagram, Linkedin, CalendarCheck, Camera, Facebook, X } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 export function Profile() {
   const { id } = useParams<{ id: string }>();
   const [photographer, setPhotographer] = useState<any>(null);
   const [portfolio, setPortfolio] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-
-  // Fallback data
-  const fallback = {
-    "james-mcguigan": {
-      id: "james-mcguigan",
-      name: "James McGuigan Jr",
-      bio: "I specialize in dynamic lighting and cinematic portraits. Open to negotiation via the messaging system to ensure you get the exact vibe you need.",
-      pricingRules: "25 USD per 100 edited photos \n15 USD per 5 Polaroids",
-      instagram: "https://www.instagram.com/jimmyu2foru18/",
-      linkedin: "https://www.linkedin.com/in/james-mcguigan-jr-b26a5b317/",
-      facebook: "https://www.facebook.com/jimmyu2foru18/",
-      availability: "Available Weekends",
-      equipment: "Nikon D3400, D5600, Canon Rebel T3, Polaroid",
-      profileImage: "/jamesprofile/profile.jpg"
-    },
-    "waleed-bhatti": {
-      id: "waleed-bhatti",
-      name: "Waleed Bhatti",
-      bio: "Dedicated to capturing authentic moments and raw emotion through the lens of a classic Nikon. Available for events, portraits, and street photography.",
-      pricingRules: "Custom packages available upon request.",
-      instagram: "https://www.instagram.com/waleedb219/",
-      linkedin: "https://www.linkedin.com/in/waleed-bhatti-5127b2301/",
-      facebook: "https://www.facebook.com/profile.php?id=100067090366463",
-      availability: "Flexible Schedule",
-      equipment: "Nikon D40X, Nikon D50 with audio/visual editing",
-      profileImage: "/waleedprofile/profile.jpg"
-    }
-  };
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchProfile() {
       if (!id) return;
       
-      let usingFallbackImages = false;
-
-      // Try API first
       try {
         const res = await fetch(`/api/photographers/${id}`);
         if (!res.ok) throw new Error("API failed");
         const data = await res.json();
         
-        if (data.db_error_fallback_instructed) {
-          throw new Error("DB instructed fallback");
-        }
-        
-        setPhotographer({
-          id: data.id,
-          name: data.name,
-          bio: data.bio,
-          pricingRules: data.pricing_rules,
-          instagram: data.instagram ? `https://www.instagram.com/${data.instagram}/` : "",
-          linkedin: data.linkedin,
-          facebook: data.facebook,
-          availability: data.availability,
-          equipment: data.equipment,
-          profileImage: data.profile_image
-        });
+        if (data && !data.error) {
+          const cacheBuster = `?t=${Date.now()}`;
+          setPhotographer({
+            id: data.id,
+            name: data.name,
+            email: data.email,
+            bio: data.bio,
+            pricingRules: data.pricing_rules,
+            instagram: data.instagram ? `https://www.instagram.com/${data.instagram}/` : "",
+            linkedin: data.linkedin,
+            facebook: data.facebook,
+            availability: data.availability,
+            equipment: data.equipment,
+            profileImage: data.profile_image ? (data.profile_image.includes('?t=') ? data.profile_image : `${data.profile_image}${cacheBuster}`) : "",
+            coverImage: data.cover_image ? (data.cover_image.includes('?t=') ? data.cover_image : `${data.cover_image}${cacheBuster}`) : ""
+          });
 
-        const portRes = await fetch(`/api/photographers/${id}/portfolio`);
-        if (portRes.ok) {
-          const portData = await portRes.json();
-          if (Array.isArray(portData) && portData.length > 0) {
-            setPortfolio(portData);
-          } else {
-             usingFallbackImages = true;
+          // Fetch portfolio
+          const portRes = await fetch(`/api/photographers/${id}/portfolio`);
+          if (portRes.ok) {
+            const portData = await portRes.json();
+            if (Array.isArray(portData)) {
+              setPortfolio(portData.map((item: any) => ({
+                ...item,
+                imageUrl: item.imageUrl.includes('?t=') ? item.imageUrl : `${item.imageUrl}${cacheBuster}`
+              })));
+            }
           }
-        } else {
-           usingFallbackImages = true;
         }
-
       } catch (err) {
-        console.warn("Using fallback profile due to DB connection", err);
-        const selected = (fallback as any)[id];
-        if (selected) {
-          setPhotographer(selected);
-        }
-        usingFallbackImages = true;
+        console.error("Profile fetch failed", err);
+      } finally {
+        setLoading(false);
       }
-
-      if (usingFallbackImages) {
-        try {
-           const localRes = await fetch(`/api/local-portfolio/${id}`);
-           if (localRes.ok) {
-             const urls = await localRes.json();
-             if (urls.length > 0) {
-                setPortfolio(urls.map((url: string, i: number) => ({ id: `local-${i}`, imageUrl: url })));
-                usingFallbackImages = false;
-             }
-           }
-        } catch (e) {
-           console.error("Local portfolio fetch failed", e);
-        }
-      }
-
-      if (usingFallbackImages) {
-          let urls: string[] = [];
-          
-          // Use Vite's static asset bundling to guarantee images load everywhere
-          if (id === "james-mcguigan") {
-            const staticImports = import.meta.glob('/src/assets/jamesportfolio/*.{png,jpg,jpeg,webp,avif,gif}', { eager: true });
-            urls = Object.values(staticImports).map((m: any) => m.default || m) as string[];
-          } else if (id === "waleed-bhatti") {
-            const staticImports = import.meta.glob('/src/assets/waleedportfolio/*.{png,jpg,jpeg,webp,avif,gif}', { eager: true });
-            urls = Object.values(staticImports).map((m: any) => m.default || m) as string[];
-          }
-  
-          if (urls.length > 0) {
-            setPortfolio(urls.map((url, i) => ({ id: `${i}`, imageUrl: url })));
-          } else {
-             // Standard placeholder fallbacks
-             setPortfolio([
-                { id: "1", imageUrl: "https://images.unsplash.com/photo-1542038784456-1ea8e935640e?q=80&w=600&auto=format&fit=crop" },
-                { id: "2", imageUrl: "https://images.unsplash.com/photo-1551322159-c2c62cdd33ff?q=80&w=600&auto=format&fit=crop" },
-                { id: "3", imageUrl: "https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?q=80&w=600&auto=format&fit=crop" }
-             ]);
-          }
-        }
-      
-      setLoading(false);
     }
 
     fetchProfile();
@@ -148,7 +75,7 @@ export function Profile() {
         <div className="flex-1 pt-4">
           <h1 className="text-5xl md:text-7xl font-serif mb-6 tracking-tight text-white">{photographer.name}</h1>
           <p className="text-xs text-zinc-400 mb-8 uppercase font-medium tracking-[0.2em] leading-relaxed max-w-2xl border-l-[3px] border-red-500 pl-6 py-2">
-            {photographer.bio}
+            {photographer.bio || "No biography provided yet."}
           </p>
           
           {photographer.equipment && (
@@ -182,11 +109,11 @@ export function Profile() {
           <div className="bg-zinc-900 border border-zinc-800 p-8 w-full max-w-lg mb-8 relative group">
             <h3 className="text-[10px] uppercase font-bold tracking-widest text-white mb-6 border-b border-zinc-800 pb-4">Pricing & Services</h3>
             <div className="whitespace-pre-line text-zinc-400 font-semibold text-xs uppercase tracking-wider mb-8 leading-loose">
-              {photographer.pricingRules}
+              {photographer.pricingRules || "Contact for tailored pricing."}
             </div>
             <div className="flex items-center gap-3 mb-10 text-[10px] font-bold uppercase tracking-widest">
               <span className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)] animate-pulse"></span>
-              <span className="text-zinc-300">{photographer.availability}</span>
+              <span className="text-zinc-300">{photographer.availability || "Flexible Schedule"}</span>
             </div>
             
             <Link 
@@ -207,22 +134,64 @@ export function Profile() {
         <h2 className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-500 mb-10 border-b border-zinc-800 pb-4">Portfolio Gallery</h2>
         {portfolio.length > 0 ? (
           <div className="columns-1 sm:columns-2 lg:columns-3 gap-6 md:gap-8 space-y-6 md:space-y-8">
-            {portfolio.map((img) => (
-              <div key={img.id} className="break-inside-avoid relative group border border-zinc-800 bg-zinc-900 overflow-hidden hover:border-zinc-500 transition-colors">
+            {portfolio.map((img, i) => (
+              <motion.div 
+                key={img.id} 
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: i % 3 * 0.1 }}
+                className="break-inside-avoid relative group border border-zinc-800 bg-zinc-900 overflow-hidden hover:border-zinc-500 transition-colors cursor-zoom-in"
+                onClick={() => setSelectedImage(img.imageUrl)}
+              >
                 <img src={img.imageUrl} alt="Portfolio item" className="w-full h-auto object-cover group-hover:scale-105 opacity-80 group-hover:opacity-100 transition-all duration-700 grayscale group-hover:grayscale-0" loading="lazy" />
-              </div>
+              </motion.div>
             ))}
           </div>
         ) : (
           <div className="bg-black border border-zinc-800 p-12 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
             No portfolio images available yet. 
-            <br/><br/>
-            <span className="text-zinc-600">
-              (Images placed in <code className="lowercase bg-zinc-900 px-1 py-0.5">/src/assets/{id === 'james-mcguigan' ? 'jamesportfolio' : 'waleedportfolio'}</code> will automatically appear here.)
-            </span>
           </div>
         )}
       </div>
+
+      {/* Image Lightbox */}
+      <AnimatePresence>
+        {selectedImage && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/98 backdrop-blur-md p-4 md:p-12"
+            onClick={() => setSelectedImage(null)}
+          >
+            <button 
+              className="absolute top-8 right-8 text-white/40 hover:text-white transition-all z-[60] hover:rotate-90 duration-300"
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedImage(null);
+              }}
+            >
+              <X className="w-10 h-10" />
+            </button>
+            
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="relative max-w-6xl max-h-[85vh] w-full flex items-center justify-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <img 
+                src={selectedImage} 
+                alt="Full view" 
+                className="max-w-full max-h-[85vh] object-contain shadow-[0_0_50px_rgba(0,0,0,0.8)] border border-zinc-800/50"
+              />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

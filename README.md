@@ -1,6 +1,7 @@
 # J&W Creative Studio
 
-J&W Creative Studio is a photography management platform built for photographers and clients. It provides a centralized hub for showcasing portfolios, managing bookings, and professional networking.
+J&W Creative Studio is a photography management platform built for photographers and clients. 
+It provides a centralized hub for showcasing portfolios, managing bookings, and professional networking.
 
 ## Features
 

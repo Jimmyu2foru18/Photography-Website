@@ -5,60 +5,42 @@ export function Booking() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   
-  const [photographerName, setPhotographerName] = useState("");
+  const [photographer, setPhotographer] = useState<{name: string, email: string} | null>(null);
   const [clientName, setClientName] = useState("");
   const [message, setMessage] = useState("");
   const [budgetOffer, setBudgetOffer] = useState("");
 
   useEffect(() => {
-    function getPhotog() {
+    async function getPhotog() {
       if (!id) return;
-      // Fallback test data
-      if (id === "james-mcguigan") setPhotographerName("James McGuigan Jr");
-      else if (id === "waleed-bhatti") setPhotographerName("Waleed Bhatti");
-      else setPhotographerName("Photographer");
+      try {
+        const res = await fetch(`/api/photographers/${id}`);
+        if (res.ok) {
+          const data = await res.json();
+          setPhotographer({ name: data.name, email: data.email });
+        }
+      } catch (err) {
+        console.error("Failed to fetch photographer for booking", err);
+      }
     }
     getPhotog();
   }, [id]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!photographer) return;
     
-    try {
-      const res = await fetch("/api/bookings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          photographer_id: id,
-          client_name: clientName,
-          budget_offer: budgetOffer,
-          message: message,
-        })
-      });
-
-      if (!res.ok) throw new Error("API failed");
-      
-      alert("Booking request submitted to database successfully!");
-      navigate("/");
-    } catch (err) {
-      console.warn("DB booking failed, falling back to mailto", err);
-      // Create mailto link
-      const subject = encodeURIComponent(`Booking Request: ${photographerName}`);
-      let body = `Name: ${clientName || "Client"}\n`;
-      body += `Budget Offer: ${budgetOffer}\n\n`;
-      body += `Message/Details:\n${message}\n\n`;
-      body += `------------------------\n*If additional contact is needed, I will reach out via 516-640-2240*`;
-      
-      const mailtoLink = `mailto:jimmymcguigan18@gmail.com?subject=${subject}&body=${encodeURIComponent(body)}`;
-      
-      // Open the user's email client
-      window.location.href = mailtoLink;
-      
-      // Send them back to home after a short delay
-      setTimeout(() => {
-        navigate("/");
-      }, 500);
-    }
+    // Create mailto link
+    const subject = encodeURIComponent(`Booking Request: ${photographer.name}`);
+    let body = `Name: ${clientName || "Client"}\n`;
+    body += `Budget Offer: ${budgetOffer}\n\n`;
+    body += `Message/Details:\n${message}\n\n`;
+    body += `------------------------\n*Sent via J&W Creative Studio*`;
+    
+    const mailtoLink = `mailto:${photographer.email}?subject=${subject}&body=${encodeURIComponent(body)}`;
+    window.location.href = mailtoLink;
+    
+    setTimeout(() => navigate("/"), 1000);
   };
 
   return (
@@ -67,7 +49,7 @@ export function Booking() {
         <div className="mb-12 text-center">
           <h1 className="text-4xl md:text-5xl font-serif mb-4 text-white tracking-tight">Request a Shoot</h1>
           <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-[0.2em]">
-            Booking with <span className="text-white">{photographerName}</span>
+            Booking with <span className="text-white">{photographer?.name || "..."}</span>
           </p>
         </div>
 

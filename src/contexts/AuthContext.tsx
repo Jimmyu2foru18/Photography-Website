@@ -13,6 +13,7 @@ interface AuthContextType {
   appUser: AppUser | null;
   loading: boolean;
   signIn: (email?: string, name?: string, isSignUp?: boolean, password?: string) => Promise<void>;
+  login: (userData: any) => void;
   signOut: () => Promise<void>;
 }
 
@@ -30,6 +31,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(false);
   }, []);
 
+  const login = (userData: any) => {
+    const userToLogin: AppUser = {
+      uid: userData.uid,
+      email: userData.email,
+      name: userData.name,
+      role: userData.role as AppUserRole
+    };
+    setAppUser(userToLogin);
+    localStorage.setItem("mock_auth_user", JSON.stringify(userToLogin));
+  };
+
   const signIn = async (email?: string, name?: string, isSignUp?: boolean, password?: string) => {
     try {
       const response = await fetch('/api/auth/login', {
@@ -41,14 +53,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error("Invalid credentials or server error");
       }
       const data = await response.json();
-      const userToLogin: AppUser = {
-        uid: data.uid,
-        email: data.email,
-        name: data.name,
-        role: data.role as AppUserRole
-      };
-      setAppUser(userToLogin);
-      localStorage.setItem("mock_auth_user", JSON.stringify(userToLogin));
+      login(data);
     } catch (err: any) {
       console.error(err);
       throw err;
@@ -61,7 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ appUser, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ appUser, loading, signIn, login, signOut }}>
       {children}
     </AuthContext.Provider>
   );

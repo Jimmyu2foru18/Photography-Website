@@ -14,6 +14,8 @@ import { AdminDashboard } from "./pages/AdminDashboard";
 import { Booking } from "./pages/Booking";
 import { EditProfile } from "./pages/EditProfile";
 import { Login } from "./pages/Login";
+import { ForgotPassword } from "./pages/ForgotPassword";
+import { ResetPassword } from "./pages/ResetPassword";
 
 export default function App() {
   return (
@@ -21,6 +23,8 @@ export default function App() {
       <Route path="/" element={<Layout />}>
         <Route index element={<Home />} />
         <Route path="login" element={<Login />} />
+        <Route path="forgot-password" element={<ForgotPassword />} />
+        <Route path="reset-password" element={<ResetPassword />} />
         <Route path="photographers" element={<Photographers />} />
         <Route path="photographers/:id" element={<Profile />} />
         <Route path="booking/:id" element={<Booking />} />
